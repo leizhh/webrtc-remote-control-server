@@ -1,110 +1,93 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="icon" href="/public/img/favicon.ico">
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.staticfile.org/twitter-bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet">
+{{define "index.html"}}
+<!--Embed the header.html template at this location-->
+{{ template "header" .}}
 
-    <!-- Optional JavaScript -->
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <script src="https://cdn.staticfile.org/jquery/3.4.1/jquery.min.js"></script>
-    <script src="https://cdn.staticfile.org/popper.js/1.16.1/umd/popper.min.js"></script>
-    <script src="https://cdn.staticfile.org/twitter-bootstrap/4.4.1/js/bootstrap.min.js"></script>
+<br>
+<div style="text-align:center;"><h2>Remote Control over WebRTC</h2></div>
+<hr style="background-color: #213F99;width: 100px;margin-left: auto;margin-right: auto;">
+<div style="text-align:center;"><p class="lead">基于WebRTC的实时远程控制系统,支持视频监控、远程控制与SSH登录</p></div>
 
-    <title>NJUPT-WebRTC Remote Control</title>
-  </head>
-  <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">
-            <img src="/public/img/logo.png" width="120" height="30" class="d-inline-block align-top" alt="">
-          </a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-          <div class="navbar-nav">
-            <a class="nav-item nav-link" href="#" id="nav_home">Home</a>
-            <a class="nav-item nav-link" href="#" id="nav_doc">Doc</a>
-          </div>
-        </div>
-      </nav>
-
-      <br>
-      <div style="text-align:center;"><h2>Remote Control over WebRTC</h2></div>
-      <hr style="background-color: #213F99;width: 100px;margin-left: auto;margin-right: auto;">
-      <div style="text-align:center;"><p class="lead">基于WebRTC的实时远程控制系统,支持视频监控、远程控制与SSH登录</p></div>
-
-      <div class="container"> 
-        <div class="row">
-          <div class="col-md-4 offset-md-4">
-            <div class="row">
-              <div class="col-9 px-1">
-                <div class="dropdown">
-                  <a class="btn btn-outline-secondary btn-block dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    请选择你要连接的设备
-                  </a>
-                  <div class="dropdown-menu" style="min-width: 100%" aria-labelledby="dropdownMenuLink" id="devices_list">
-                    <a class="dropdown-item" href="#" onclick="shows($(this).text())">Action</a>
-                    <a class="dropdown-item" href="#" onclick="shows($(this).text())">Another action</a>
-                    <a class="dropdown-item" href="#" onclick="shows($(this).text())">Something else here</a>
-                  </div>
-                </div>
-              </div>
-              <div class="col-3 px-1"><button type="button" class="btn btn-block btn-primary" onclick="ws_open()" id="connection_btn">连接</button></div>
+<div class="container"> 
+  <div class="row">
+    <div class="col-md-4 offset-md-4">
+      <div class="row">
+        <div class="col-9 px-1">
+          <div class="dropdown">
+            <a class="btn btn-outline-secondary btn-block dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              请选择你要连接的设备
+            </a>
+            <div class="dropdown-menu" style="min-width: 100%" aria-labelledby="dropdownMenuLink" id="devices_list">
+              <a class="dropdown-item" href="#" onclick="shows($(this).text())">Action</a>
+              <a class="dropdown-item" href="#" onclick="shows($(this).text())">Another action</a>
+              <a class="dropdown-item" href="#" onclick="shows($(this).text())">Something else here</a>
             </div>
           </div>
         </div>
+        <div class="col-3 px-1"><button type="button" class="btn btn-block btn-primary" onclick="ws_open()" id="connection_btn">连接</button></div>
       </div>
-      <script>
-          $(document).ready(function() {
-              get_devices();
-              $("#{{ .nav}}").addClass("active");
-          });
-          
+    </div>
+  </div>
+</div>
+      
+<script>
+    var DevicesList = new Array();
+    $(document).ready(function() {
+        get_devices();
+    });
+    
+    function get_devices(){
+      $("#devices_list").empty();
 
-          function shows(a) {
-            $("#dropdownMenuLink").text(a);
-          }
-          function ws_open(){
-            $("#connection_btn").text("断开");
-            $("#connection_btn").removeClass("btn_primary");
-            $("#connection_btn").addClass("btn-danger");
-            $("#connection_btn").attr("onclick","ws_close()");
-          }
+      $.ajax({
+        type:"GET",
+        url:"/devices",
+        dataType:"json", 
+        success:function(data){
+            if(data.data == null){
+                $("#devices_list").prepend("<a class=\"dropdown-item disabled\" onclick=\"shows($(this).text())\">当前没有设备在线</a>");                            
+            }else{
+                $.each(data.data, function (index, value) {      
+                    DevicesList[value.device_id] = value.using;
+                    name = value.device_id +(value.using?"<font color=\"red\">[使用中]</font>":"<font color=\"green\">[可用]</font>");
+                    $("#devices_list").prepend("<a class=\"dropdown-item\" onclick=\"shows($(this))\" value=\""+value.device_id+"\">"+name+"</a>");  
+                    console.log(name);                   
+                });                         
+            }
+        },
+        error:function(jqXHR){
+            console.log("Error: "+jqXHR.status);
+        }
+      });
+    }
 
-          function ws_close(){
-            $("#connection_btn").text("连接");
-            $("#connection_btn").removeClass("btn-danger");
-            $("#connection_btn").addClass("btn_primary");
-            $("#connection_btn").attr("onclick","ws_open()");
-          }
+    function shows(a) {
+      //name = a + (DevicesList[a]?"<font color=\"red\">[使用中]</font>":"<font color=\"green\">[可用]</font>");
+      $("#dropdownMenuLink").text(a.text());
+      $("#dropdownMenuLink").attr("value",DevicesList[a.attr("value")]);
+      if(DevicesList[a.attr("value")] == true){
+        $("#connection_btn").addClass("disabled");
+        $("#connection_btn").attr("disabled", true); 
+      }else{
+        $("#connection_btn").removeClass("disabled");
+        $("#connection_btn").attr("disabled", false); 
+      }
+    }
 
-          function get_devices(){
-            $("#devices_list").empty();
+    function ws_open(){
+      $("#connection_btn").text("断开");
+      $("#connection_btn").removeClass("btn_primary");
+      $("#connection_btn").addClass("btn-danger");
+      $("#connection_btn").attr("onclick","ws_close()");
+    }
 
-            $.ajax({
-              type:"GET",
-              url:"/devices",
-              dataType:"json", 
-              success:function(data){
-                  if(data.data == null){
-                      $("#devices_list").prepend("<a class=\"dropdown-item disabled\" onclick=\"shows($(this).text())\">当前没有设备在线</a>");                            
-                  }else{
-                      $.each(data.data, function (index, value) {      
-                          name = value.device_id +(value.using?"<font color=\"red\">[使用中]</font>":"<font color=\"green\">[可用]</font>");
-                          $("#devices_list").prepend("<a class=\"dropdown-item\" onclick=\"shows($(this).text())\" value=\""+value.device_id+"\">"+name+"</a>");  
-                          console.log(name);                   
-                      });                         
-                  }
-              },
-              error:function(jqXHR){
-                  console.log("Error: "+jqXHR.status);
-              }
-            });
-          }
-      </script>
-  </body>
-</html>
+    function ws_close(){
+      $("#connection_btn").text("连接");
+      $("#connection_btn").removeClass("btn-danger");
+      $("#connection_btn").addClass("btn_primary");
+      $("#connection_btn").attr("onclick","ws_open()");
+    }
+</script>
+
+<!--Embed the footer.html template at this location-->
+{{ template "footer" .}}
+{{end}}
