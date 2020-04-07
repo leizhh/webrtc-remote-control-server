@@ -13,29 +13,41 @@
       <div class="row">
         <div class="col-9 px-1">
           <div class="dropdown">
-            <a class="btn btn-outline-secondary btn-block dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              请选择你要连接的设备
-            </a>
-            <div class="dropdown-menu" style="min-width: 100%" aria-labelledby="dropdownMenuLink" id="devices_list">
-              <a class="dropdown-item" href="#" onclick="shows($(this).text())">Action</a>
-              <a class="dropdown-item" href="#" onclick="shows($(this).text())">Another action</a>
-              <a class="dropdown-item" href="#" onclick="shows($(this).text())">Something else here</a>
-            </div>
+            <a class="btn btn-outline-secondary btn-block dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">请选择你要连接的设备</a>
+            <div class="dropdown-menu" style="min-width: 100%" aria-labelledby="dropdownMenuLink" id="devices_list"></div>
           </div>
         </div>
-        <div class="col-3 px-1"><button type="button" class="btn btn-block btn-primary" onclick="ws_open()" id="connection_btn">连接</button></div>
+        <div class="col-3 px-1"><button type="button" class="btn btn-block btn-primary disabled" onclick="startSession()" id="connection_btn" disabled>连接</button></div>
       </div>
+      <div class="row">
+          <div class="col-12 px-1">
+            <small id="loger"></small>
+          </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container"> 
+  <div class="row">
+    <div class="col-md-6 offset-md-3">
+        <br /><div id="remoteVideos"></div> <br />
     </div>
   </div>
 </div>
       
 <script>
     var DevicesList = new Array();
+    var localSessionDescription= "";
+    var remoteSessionDescription = "";
+    var wsClient = null;
+
     $(document).ready(function() {
-        get_devices();
+        getDevices();
+        initWebRTC();
     });
     
-    function get_devices(){
+    function getDevices(){
       $("#devices_list").empty();
 
       $.ajax({
@@ -44,12 +56,12 @@
         dataType:"json", 
         success:function(data){
             if(data.data == null){
-                $("#devices_list").prepend("<a class=\"dropdown-item disabled\" onclick=\"shows($(this).text())\">当前没有设备在线</a>");                            
+                $("#devices_list").prepend("<a class=\"dropdown-item disabled\" onclick=\"dropdownShow($(this).text())\">当前没有设备在线</a>");                            
             }else{
                 $.each(data.data, function (index, value) {      
                     DevicesList[value.device_id] = value.using;
                     name = value.device_id +(value.using?"<font color=\"red\">[使用中]</font>":"<font color=\"green\">[可用]</font>");
-                    $("#devices_list").prepend("<a class=\"dropdown-item\" onclick=\"shows($(this))\" value=\""+value.device_id+"\">"+name+"</a>");  
+                    $("#devices_list").prepend("<a class=\"dropdown-item\" onclick=\"dropdownShow($(this))\" value=\""+value.device_id+"\">"+name+"</a>");  
                     console.log(name);                   
                 });                         
             }
@@ -60,10 +72,10 @@
       });
     }
 
-    function shows(a) {
+    function dropdownShow(a) {
       //name = a + (DevicesList[a]?"<font color=\"red\">[使用中]</font>":"<font color=\"green\">[可用]</font>");
       $("#dropdownMenuLink").text(a.text());
-      $("#dropdownMenuLink").attr("value",DevicesList[a.attr("value")]);
+      $("#dropdownMenuLink").attr("value",a.attr("value"));
       if(DevicesList[a.attr("value")] == true){
         $("#connection_btn").addClass("disabled");
         $("#connection_btn").attr("disabled", true); 
@@ -73,18 +85,103 @@
       }
     }
 
-    function ws_open(){
+    function initWebsocket(){
+        wsClient = new WebSocket("ws://"+document.location.host+"/offer");
+        wsClient.onopen = function() {
+            //成功连接到服务器
+            console.log("connected to server");
+        }
+        wsClient.onclose = function(e) {
+            btnClose();
+            console.log("connection closed (" + e.code + ")");
+        }
+        wsClient.onmessage = function(e) {
+            //服务器发送通知
+            //开始处理
+            console.log("message received: " + e.data);
+            var obj = JSON.parse(e.data);
+            if(obj.status == "error"){
+                log(obj.msg);
+                stopSession();
+            }
+            if(obj.type == "answer"){
+                remoteSessionDescription = obj.sdp;
+                if (remoteSessionDescription === '') {
+                    alert('Session Description must not be empty');
+                }
+
+                try {
+                    pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(remoteSessionDescription))));
+                    btnOpen();
+                } catch (e) {
+                    alert(e);
+                }
+            }
+        }
+    }
+
+    function startSession(){
+      initWebsocket();
+      var content = new Object();
+      content["type"]="offer";
+      content["device_id"]=$("#dropdownMenuLink").attr("value");
+      content["sdp"]=localSessionDescription;
+      wsClient.send(JSON.stringify(content));
+    }
+
+    function stopSession(){
+      wsClient.close();
+      btnClose();
+    }
+
+    function btnOpen(){
       $("#connection_btn").text("断开");
       $("#connection_btn").removeClass("btn_primary");
       $("#connection_btn").addClass("btn-danger");
-      $("#connection_btn").attr("onclick","ws_close()");
+      $("#connection_btn").attr("onclick","stopSession()");
     }
 
-    function ws_close(){
+    function btnClose(){
       $("#connection_btn").text("连接");
       $("#connection_btn").removeClass("btn-danger");
       $("#connection_btn").addClass("btn_primary");
-      $("#connection_btn").attr("onclick","ws_open()");
+      $("#connection_btn").attr("onclick","startSession()");
+    }
+
+    function initWebRTC(){
+        let pc = new RTCPeerConnection({
+            iceServers: [
+                {
+                urls: 'stun:118.89.111.54:3478'
+                }
+            ]
+        })
+
+        pc.ontrack = function (event) {
+            var el = document.createElement(event.track.kind)
+            el.srcObject = event.streams[0]
+            el.autoplay = true
+            el.controls = true
+
+            $("#remoteVideos").appendChild(el)
+        }
+
+        pc.oniceconnectionstatechange = e => log(pc.iceConnectionState)
+        pc.onicecandidate = event => {
+            if (event.candidate === null) {
+                localSessionDescription = btoa(JSON.stringify(pc.localDescription));
+                console.log("localDescription:",btoa(JSON.stringify(pc.localDescription)));
+            }
+        }
+
+        // Offer to receive 1 audio, and 1 video tracks
+        pc.addTransceiver('audio', {'direction': 'sendrecv'})
+        pc.addTransceiver('video', {'direction': 'sendrecv'})
+        pc.createOffer().then(d => pc.setLocalDescription(d)).catch(log)
+    }
+
+    function log(msg){
+        $("#loger").html(msg);
     }
 </script>
 

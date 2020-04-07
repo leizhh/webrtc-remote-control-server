@@ -34,15 +34,15 @@ func AnswerHandler(c *gin.Context) {
 			return
 		}
 	
-		resp := make(map[string]string)
-		err = json.Unmarshal(msg, &resp)
+		resq := make(map[string]string)
+		err = json.Unmarshal(msg, &resq)
 	
-		if resp["type"] == "online" {
-			client = h.NewClient(resp["device_id"],ws)
+		if resq["type"] == "online" {
+			client = h.NewClient(resq["device_id"],ws)
 	
 			ws.SetCloseHandler(func(code int, text string) error {
-				h.Close(resp["device_id"])
-				fmt.Println(resp["device_id"], " is offline,")
+				h.Close(resq["device_id"])
+				fmt.Println(resq["device_id"], " is offline,")
 				return nil
 			})
 			
@@ -71,14 +71,15 @@ func OfferHandler(c *gin.Context) {
 			return
 		}
 	
-		resp := make(map[string]string)
-		err = json.Unmarshal(msg, &resp)
+		resq := make(map[string]string)
+		err = json.Unmarshal(msg, &resq)
 	
-		if resp["type"] == "offer" {
-			if h.ExistClient(resp["device_id"]){
+		if resq["type"] == "offer" {
+			if h.ExistClient(resq["device_id"]){
 
-				if h.client[resp["device_id"]].using {
-					err = client.conn.WriteMessage(websocket.TextMessage, []byte("device_id is using"))
+				if h.client[resq["device_id"]].using {
+					resp := "{\"status\":\"error\",\"msg\":\""+resq["device_id"]+" is using\"}"
+					err = client.conn.WriteMessage(websocket.TextMessage, []byte(resp))
 					if err != nil {
 						fmt.Println(err)
 						return
@@ -86,14 +87,14 @@ func OfferHandler(c *gin.Context) {
 					continue
 				}
 				
-				h.Connection(resp["device_id"],client)
+				h.Connection(resq["device_id"],client)
 
 				ws.SetCloseHandler(func(code int, text string) error {
-					h.Close(resp["device_id"])
+					h.Close(resq["device_id"])
 					return nil
 				})
 
-				client.send_ch <- resp["sdp"]	
+				client.send_ch <- string(msg)
 				data := <- client.receive_ch
 
 				err = ws.WriteMessage(websocket.TextMessage, []byte(data))
@@ -104,7 +105,8 @@ func OfferHandler(c *gin.Context) {
 				break
 			}
 		}
-		err = client.conn.WriteMessage(websocket.TextMessage, []byte("device_id is not exist"))
+		resp := "{\"status\":\"error\",\"msg\":\""+resq["device_id"]+" is not exist\"}"
+		err = client.conn.WriteMessage(websocket.TextMessage, []byte(resp))
 		if err != nil {
 			fmt.Println(err)
 			return
