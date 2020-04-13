@@ -78,7 +78,7 @@ func OfferHandler(c *gin.Context) {
 			if h.ExistClient(resq["device_id"]){
 
 				if h.client[resq["device_id"]].using {
-					resp := "{\"status\":\"error\",\"msg\":\""+resq["device_id"]+" is using\"}"
+					resp := "{\"type\":\"error\",\"msg\":\""+resq["device_id"]+" is using\"}"
 					err = client.conn.WriteMessage(websocket.TextMessage, []byte(resp))
 					if err != nil {
 						fmt.Println(err)
@@ -105,7 +105,7 @@ func OfferHandler(c *gin.Context) {
 				break
 			}
 		}
-		resp := "{\"status\":\"error\",\"msg\":\""+resq["device_id"]+" is not exist\"}"
+		resp := "{\"type\":\"error\",\"msg\":\""+resq["device_id"]+" is not exist\"}"
 		err = client.conn.WriteMessage(websocket.TextMessage, []byte(resp))
 		if err != nil {
 			fmt.Println(err)
