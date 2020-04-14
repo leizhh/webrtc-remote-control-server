@@ -1,0 +1,65 @@
+{{define "cards"}} 
+
+<div class="container"> 
+    <div class="row">
+      <div class="col-md-6">
+          <br><video id="remoteVideo" controls="controls" autoplay class="m-0 p-0" style="width:100%; height:100%;object-fit:fill">等待初始化</video><br>
+      </div>
+  
+      <div class="col-md-6">
+        <br>
+        <div class="card text-center">
+          <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs">
+              <li class="nav-item">
+                <a class="nav-link active" onclick="controlShow()" id="control_nav">Control</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" onclick="sshShow()" id="ssh_nav">SSH</a>
+              </li>
+            </ul>
+          </div>
+  
+          <div class="card-body" id="control_body">
+            <div class="input-group" style="width:100%;">
+              <textarea id="commandInput" placeholder='e.g. {"device":"light","operate":"open"}'rows="5" style="width:80%"></textarea>
+              <div class="input-group-append" style="float:left; 
+              overflow:hidden;width:20%;"><button id="commandSend" class="btn btn-outline-secondary" style="width:100%" type="button" disabled>Send</button></div>
+            </div>
+            <br>
+            <div class="input-group" style="width:100%">
+              <textarea id="inputCommand" style="width:80%" rows="5" readonly></textarea>
+              <div class="input-group-append" style="float:left; 
+              overflow:hidden;width:20%;"><button class="btn btn-outline-secondary" style="width:100%" type="button" disabled>Receive</button></div>
+            </div>
+          </div>
+  
+          <div class="card-body" id="ssh_body" hidden>hello world</div>
+        </div>
+      </div>
+    </div>
+  </div>
+        
+  <br><br>
+
+  <script>
+      function controlShow(){
+        $("#ssh_body").attr("hidden",true);
+        $("#control_body").attr("hidden",false);
+        $("#ssh_nav").removeClass("active");
+        $("#control_nav").addClass("active");
+      }
+
+      function sshShow(){
+        $("#ssh_body").attr("hidden",false);
+        $("#control_body").attr("hidden",true);
+        $("#ssh_nav").addClass("active");
+        $("#control_nav").removeClass("active");
+      }
+
+      function controlSend(){
+          
+      }
+  </script>
+      
+{{end}}
