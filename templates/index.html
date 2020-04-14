@@ -187,6 +187,8 @@
           }
         }
 
+        initDataChannel(pc);
+
         pc.oniceconnectionstatechange = e => log(pc.iceConnectionState)
         pc.onicecandidate = event => {
             if (event.candidate === null) {

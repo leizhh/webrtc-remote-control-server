@@ -22,13 +22,13 @@
   
           <div class="card-body" id="control_body">
             <div class="input-group" style="width:100%;">
-              <textarea id="commandInput" placeholder='e.g. {"device":"light","operate":"open"}'rows="5" style="width:80%"></textarea>
+              <textarea id="controlInput" placeholder='e.g. {"device":"light","operate":"open"}'rows="5" style="width:80%"></textarea>
               <div class="input-group-append" style="float:left; 
-              overflow:hidden;width:20%;"><button id="commandSend" class="btn btn-outline-secondary" style="width:100%" type="button" disabled>Send</button></div>
+              overflow:hidden;width:20%;"><button id="commandSend" class="btn btn-outline-secondary" style="width:100%" type="button" onclick="controlSend()" disabled>Send</button></div>
             </div>
             <br>
             <div class="input-group" style="width:100%">
-              <textarea id="inputCommand" style="width:80%" rows="5" readonly></textarea>
+              <textarea id="controlOutput" style="width:80%" rows="5" readonly></textarea>
               <div class="input-group-append" style="float:left; 
               overflow:hidden;width:20%;"><button class="btn btn-outline-secondary" style="width:100%" type="button" disabled>Receive</button></div>
             </div>
@@ -57,8 +57,26 @@
         $("#control_nav").removeClass("active");
       }
 
+      var controlDC;
+      function initDataChannel(pc){
+        controlDC = pc.createDataChannel("Control");
+        controlDC.onmessage = function (event) {
+          console.log("received: " + event.data);
+          $("#controlOutput").val(event.data);
+        };
+
+        controlDC.onopen = function () {
+          console.log("datachannel open");
+        };
+
+        controlDC.onclose = function () {
+          console.log("datachannel close");
+        };
+      }
+
       function controlSend(){
-          
+        var msg = $("#controlInput").val();
+        controlDC.send(msg);
       }
   </script>
       
