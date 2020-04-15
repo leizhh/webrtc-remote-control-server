@@ -34,7 +34,11 @@
             </div>
           </div>
   
-          <div class="card-body" id="ssh_body" hidden>hello world</div>
+          <div class="card-body m-0 p-0" id="ssh_body" hidden>
+            <div class="container m-0 p-0">
+              <div id="terminal"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -43,6 +47,8 @@
   <br><br>
 
   <script>
+      initTerm();
+      var termExis = false;
       function controlShow(){
         $("#ssh_body").attr("hidden",true);
         $("#control_body").attr("hidden",false);
@@ -55,9 +61,15 @@
         $("#control_body").attr("hidden",true);
         $("#ssh_nav").addClass("active");
         $("#control_nav").removeClass("active");
+        if(termExis == false){
+          initTerm();
+          termExis = true;
+        }
       }
 
       var controlDC;
+      var sshDC;
+
       function initDataChannel(pc){
         controlDC = pc.createDataChannel("Control");
         controlDC.onmessage = function (event) {
@@ -72,11 +84,69 @@
         controlDC.onclose = function () {
           console.log("datachannel close");
         };
+
+        sshDC = pc.createDataChannel("SSH");
+        
+        sshDC.onopen = function () {
+          console.log("datachannel open");
+        };
+
+        sshDC.onclose = function () {
+          console.log("datachannel close");
+        };
       }
 
       function controlSend(){
         var msg = $("#controlInput").val();
         controlDC.send(msg);
+      }
+
+      function initTerm(){
+        Terminal.applyAddon(fit);  // Apply the `fit` addon
+
+        let terminalContainer = document.getElementById('terminal');
+        term = new Terminal({
+            cols: 80,
+            rows: 20,
+            cursorBlink: true,
+            tabStopWidth: 4
+        })
+
+        //调用 
+        term.open(terminalContainer);
+        term._initialized = true;
+        term.fit();
+
+        term.writeln("welcome to use WebRTC Remote Control");
+        term.write("~$ ")
+        let input = '';
+        term.on("key", function(key,ev){
+            if(ev.keyCode === 13){
+                console.log(input);
+                term.write('\r\n');
+                term.write("~$ ");
+                sshDC.send(input);
+                sshDC.onmessage = function (event) {
+                    term.writeln(event.data);
+                    term.write("~$ ")
+                    console.log(event.data);
+                };
+                input = '';
+            }else if (ev.keyCode === 8) {
+            // Do not delete the prompt
+                if (term._core.buffer.x > 3) {
+                    term.write('\b \b');
+                    input = input.substr(0, input.length - 1);
+                }
+            } else {
+                input += key
+                term.write(key);
+            };
+        })
+      }
+
+      function ab2str(buf) {
+        return String.fromCharCode.apply(null, new Uint8Array(buf));
       }
   </script>
       
