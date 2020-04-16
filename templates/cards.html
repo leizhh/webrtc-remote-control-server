@@ -10,13 +10,14 @@
         <br>
         <div class="card text-center">
           <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs">
+            <ul class="nav nav-tabs card-header-tabs" style="position: relative;">
               <li class="nav-item">
                 <a class="nav-link active" onclick="sshShow()" id="ssh_nav">SSH</a>
               </li>
               <li class="nav-item">
                 <a class="nav-link" onclick="controlShow()" id="control_nav">Control</a>
               </li>
+              <button type="button" class="btn btn-light m-1 py-0" onclick="fullscreenOpen()" id="fullscreen-btn" style="position:absolute;right:0px;"><i class="fas fa-expand-arrows-alt"></i></button>
             </ul>
           </div>
   
@@ -43,13 +44,15 @@
       </div>
     </div>
   </div>
-        
+
+  <div style="z-index: 9999; position: fixed ! important; right: 30px; top: 0px;" hidden id="fullscreen-exit"> <button type="button" class="btn btn-dark m-1" onclick="fullscreenClose()" id="fullscreen-btn"><i class="fas fa-compress-arrows-alt"></i></button></div>
   <br><br>
 
   <script>
       initTerm();
       function controlShow(){
         $("#ssh_body").attr("hidden",true);
+        $("#fullscreen-btn").attr("hidden",true)
         $("#control_body").attr("hidden",false);
         $("#ssh_nav").removeClass("active");
         $("#control_nav").addClass("active");
@@ -57,6 +60,7 @@
 
       function sshShow(){
         $("#ssh_body").attr("hidden",false);
+        $("#fullscreen-btn").attr("hidden",false)
         $("#control_body").attr("hidden",true);
         $("#ssh_nav").addClass("active");
         $("#control_nav").removeClass("active");
@@ -92,13 +96,14 @@
           console.log("datachannel open");
         };
         sshDC.onmessage = function (event) {
-            pwTarget = false;
             if(event.data != "success"){
               userInput();
               console.log(event.data);
             }else{
               console.log("success");
+              term.clear();
               sshDC.onmessage = function (event) {
+                  term.write('\r\n');
                   term.write(ab2str(event.data));
                   console.log(ab2str(event.data));
               };
@@ -116,10 +121,11 @@
 
       function initTerm(){
         Terminal.applyAddon(fit);  // Apply the `fit` addon
+        Terminal.applyAddon(fullscreen);
 
         let terminalContainer = document.getElementById('terminal');
         term = new Terminal({
-            cols: 80,
+            cols: 40,
             rows: 20,
             cursorBlink: true,
             tabStopWidth: 4
@@ -132,30 +138,50 @@
 
         term.writeln("welcome to use WebRTC Remote Control");
 
+        term.on("paste", function(data) {
+          term.write(data);
+        });
+
         term.on("key", function(key,ev){
-            if(ev.keyCode === 13){
-                console.log(input);
+            if(userTarget == true){
+              if(ev.keyCode === 13){
                 term.write('\r\n');
                 sshDC.send(input);
                 input = '';
-                if(userTarget == true){
-                  passwordInput();
-                  userTarget = false;
-                }
-            }else if (ev.keyCode === 8) {
-            // Do not delete the prompt
+                passwordInput();
+                userTarget = false;
+              }else if (ev.keyCode === 8) {
                 if (input.length > 0) {
                     term.write('\b \b');
                     input = input.substr(0, input.length - 1);
                 }
-            } else {
+              }else{
                 input += key;
-                if(pwTarget == true){
-                  term.write("*");
-                }else{
-                  term.write(key);
+                term.write(key);
+              }
+            }else if(pwTarget == true){
+              if(ev.keyCode === 13){
+                term.write('\r\n');
+                sshDC.send(input);
+                input = '';
+                pwTarget = false;
+              }else if (ev.keyCode === 8) {
+                if (input.length > 0) {
+                    term.write('\b \b');
+                    input = input.substr(0, input.length - 1);
                 }
-            };
+              }else{
+                input += key;
+                term.write("*");
+              }
+            }else {
+              sshDC.send(key);
+              if(ev.keyCode === 8){
+                term.write('\b \b');
+              }else{
+                term.write(key);
+              }
+            }
         })
       }
 
@@ -173,6 +199,17 @@
 
       function ab2str(buf) {
         return String.fromCharCode.apply(null, new Uint8Array(buf));
+      }
+
+      function fullscreenOpen(){
+        $("#fullscreen-exit").attr("hidden",false)
+        term.toggleFullScreen();
+        //term.fit();
+      }
+      function fullscreenClose(){
+        $("#fullscreen-exit").attr("hidden",true)
+        term.toggleFullScreen();
+        //term.fit();   
       }
   </script>
       
