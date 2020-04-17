@@ -36,8 +36,8 @@
           </div>
   
           <div class="card-body m-0 p-0" id="ssh_body">
-            <div class="container m-0 p-0">
-              <div id="terminal"></div>
+            <div class="container">
+              <div id="terminal" style="height:320px;width:100%"></div>
             </div>
           </div>
         </div>
@@ -73,6 +73,7 @@
       var input = '';
       var pwTarget = false;
       var userTarget = false;
+      var inputCount = 0;
 
       function initDataChannel(pc){
         controlDC = pc.createDataChannel("Control");
@@ -100,9 +101,11 @@
               userInput();
               console.log(event.data);
             }else{
-              console.log("success");
               term.clear();
+              sshDC.send("resize "+term.cols+" "+term.rows);
+              console.log("success resize "+term.cols+" "+term.rows);
               sshDC.onmessage = function (event) {
+                  inputCount = 0;
                   term.write('\r\n');
                   term.write(ab2str(event.data));
                   console.log(ab2str(event.data));
@@ -125,8 +128,6 @@
 
         let terminalContainer = document.getElementById('terminal');
         term = new Terminal({
-            cols: 40,
-            rows: 20,
             cursorBlink: true,
             tabStopWidth: 4
         })
@@ -140,6 +141,10 @@
 
         term.on("paste", function(data) {
           term.write(data);
+        });
+        term.on("resize", function(ev){
+            console.log("cols:",term.cols,"rows:",term.rows);
+            sshDC.send("resize "+term.cols+" "+term.rows);
         });
 
         term.on("key", function(key,ev){
@@ -176,10 +181,14 @@
               }
             }else {
               sshDC.send(key);
-              if(ev.keyCode === 8){
+              if(ev.keyCode === 8 && inputCount > 0){
+                inputCount = inputCount - 1;
                 term.write('\b \b');
+              }else if(ev.keyCode == 86 && ev.ctrlKey) {
+                term.write(this.copy);
               }else{
                 term.write(key);
+                inputCount = inputCount + 1;
               }
             }
         })
@@ -204,12 +213,14 @@
       function fullscreenOpen(){
         $("#fullscreen-exit").attr("hidden",false)
         term.toggleFullScreen();
-        //term.fit();
+        term.resize(parseInt($(window).width()/9),parseInt($(window).height()/18));
+        term.scrollToBottom();
       }
       function fullscreenClose(){
         $("#fullscreen-exit").attr("hidden",true)
         term.toggleFullScreen();
-        //term.fit();   
+        term.fit();  
+        term.scrollToBottom(); 
       }
   </script>
       
