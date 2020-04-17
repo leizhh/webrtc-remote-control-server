@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"io/ioutil"
 	"github.com/gin-gonic/gin"
 	"webrtc-server/server"
 )
@@ -22,6 +23,14 @@ func main() {
 	router.GET("/index", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", gin.H{
 			"nav": "nav_home",
+		})
+	})
+
+	router.GET("/doc", func(c *gin.Context) {
+		doc,_ := ioutil.ReadFile("README.md")
+		c.HTML(http.StatusOK, "doc.html", gin.H{
+			"nav": "nav_doc",
+			"doc":string(doc),
 		})
 	})
 

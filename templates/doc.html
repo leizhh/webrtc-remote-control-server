@@ -1,0 +1,20 @@
+{{define "doc.html"}}
+<!--Embed the header.html template at this location-->
+{{ template "header" .}}
+
+<div class="container"> 
+    <div class="row">
+        <div class="card p-5 m-5">
+            <div class="card-body">
+                <div id="content"></div>
+            </div>
+          </div>
+    </div>
+</div>
+<script>
+  document.getElementById('content').innerHTML = marked( {{ .doc}} );
+</script>
+
+<!--Embed the footer.html template at this location-->
+{{ template "footer" .}}
+{{end}}
