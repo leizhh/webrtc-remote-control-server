@@ -38,6 +38,13 @@ func AnswerHandler(c *gin.Context) {
 		err = json.Unmarshal(msg, &resq)
 	
 		if resq["type"] == "online" {
+			exist := h.ExistClient(resq["device_id"])
+			if exist {
+				resp := "{\"type\":\"error\",\"msg\":\""+resq["device_id"]+" is exist\"}"
+				err = ws.WriteMessage(websocket.TextMessage, []byte(resp))
+				continue
+			}
+
 			client = h.NewClient(resq["device_id"],ws)
 	
 			ws.SetCloseHandler(func(code int, text string) error {
