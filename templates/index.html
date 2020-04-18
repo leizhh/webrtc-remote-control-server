@@ -14,8 +14,8 @@
 
         <div class="col-8 px-0"> 
           <div class="dropdown">
-            <button class="btn btn-outline-secondary btn-block dropdown-toggle" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="overflow:hidden; text-overflow:ellipsis;">请选择你要连接的设备</button>
-            <div class="dropdown-menu" style="min-width: 100%" aria-labelledby="dropdownMenuLink" id="devices_list"></div>
+            <button class="btn btn-outline-secondary btn-block dropdown-toggle" id="dropdown_menu_link" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="overflow:hidden; text-overflow:ellipsis;">请选择你要连接的设备</button>
+            <div class="dropdown-menu" style="min-width: 100%" aria-labelledby="dropdown_menu_link" id="devices_list"></div>
           </div>
         </div>
 
@@ -40,22 +40,116 @@
 {{ template "cards" .}}
 
 <script>
-    var DevicesList = new Array();
-    var wsClient = null;
-    var pc;
+var wsClient = null;
 
-    $(document).ready(function() {
-        getDevices();
+function initWebsocket(){
+    wsClient = new WebSocket("ws://"+document.location.host+"/offer");
+
+    wsClient.onopen = function() {
+        //成功连接到服务器
+        console.log("connected to server");
+        initWebRTC();
+    }
+
+    wsClient.onclose = function(e) {
+        btnClose();
+        console.log("connection closed (" + e.code + ")");
+    }
+
+    wsClient.onmessage = function(e) {
+        console.log("message received: " + e.data);
+        var obj = JSON.parse(e.data);
+
+        if(obj.type == "error"){
+            log(obj.msg);
+            stopSession();
+        }
+
+        if(obj.type == "answer"){
+            var remoteSessionDescription = obj.data;
+            if (remoteSessionDescription === '') {
+                alert('Session Description must not be empty');
+            }
+
+            try {
+                pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(remoteSessionDescription))));
+                btnOpen();
+            } catch (e) {
+                alert(e);
+            }
+        }
+    }
+}
+</script>
+
+<script>
+var pc;
+var trackCache;
+var trackFlag = true;
+
+function initWebRTC(){
+    pc = new RTCPeerConnection({
+        iceServers: [
+            {
+                urls: 'stun:118.89.111.54:3478'
+            }, {
+                url: "turn:118.89.111.54:3478",
+                username: "leizhh",
+                credential: "leizhh"
+            }
+        ]
     });
-    
-    function getDevices(){
-      $("#devices_list").empty();
-      $("#dropdownMenuLink").text("请选择你要连接的设备");
-      $("#dropdownMenuLink").attr("value","");
-      var el = document.getElementById('remoteVideo');
-      el.srcObject = null;
 
-      $.ajax({
+    pc.ontrack = function (event) {
+        if(trackFlag){
+            trackCache = event.track;
+            trackFlag = false;
+        }else{
+            var el = document.getElementById('remote-video')
+            resStream = event.streams[0].clone()
+            resStream.addTrack(trackCache)
+            el.srcObject = resStream
+        }
+    }
+
+    initSSH();
+    initControl();
+
+    pc.oniceconnectionstatechange = e => log(pc.iceConnectionState)
+    pc.onicecandidate = event => {
+        if (event.candidate === null) {
+            var localSessionDescription = btoa(JSON.stringify(pc.localDescription));
+            var content = new Object();
+            content["type"]="offer";
+            content["device_id"]=$("#dropdown_menu_link").attr("value");
+            content["data"]=localSessionDescription;
+            wsClient.send(JSON.stringify(content));
+            //console.log("localDescription:",btoa(JSON.stringify(pc.localDescription)));
+        }
+    }
+
+    // Offer to receive 1 audio, and 1 video tracks
+    pc.addTransceiver('audio', {'direction': 'sendrecv'})
+    pc.addTransceiver('video', {'direction': 'sendrecv'})
+    pc.createOffer().then(d => pc.setLocalDescription(d)).catch(log)
+}
+
+function log(msg){
+    $("#loger").html(msg);
+}
+</script>
+
+<script>
+var DevicesList = new Array();
+
+function getDevices(){
+    $("#devices_list").empty();
+    $("#dropdown_menu_link").text("请选择你要连接的设备");
+    $("#dropdown_menu_link").attr("value","");
+    var el = document.getElementById('remote-video');
+    el.srcObject = null;
+
+    $.ajax({
         type:"GET",
         url:"/devices",
         dataType:"json", 
@@ -74,147 +168,58 @@
         error:function(jqXHR){
             console.log("Error: "+jqXHR.status);
         }
-      });
-    }
+    });
+}
 
-    function dropdownShow(a) {
-      //name = a + (DevicesList[a]?"<font color=\"red\">[使用中]</font>":"<font color=\"green\">[可用]</font>");
-      $("#dropdownMenuLink").text(a.text());
-      $("#dropdownMenuLink").attr("value",a.attr("value"));
-      if(DevicesList[a.attr("value")] == true){
+$(document).ready(function() {
+    getDevices();
+    initTerm();
+});
+
+function dropdownShow(a) {
+    $("#dropdown_menu_link").text(a.text());
+    $("#dropdown_menu_link").attr("value",a.attr("value"));
+    if(DevicesList[a.attr("value")] == true){
         $("#connection_btn").addClass("disabled");
         $("#connection_btn").attr("disabled", true); 
-      }else{
+    }else{
         $("#connection_btn").removeClass("disabled");
         $("#connection_btn").attr("disabled", false); 
-      }
     }
+}
 
-    function initWebsocket(){
-        wsClient = new WebSocket("ws://"+document.location.host+"/offer");
-        wsClient.onopen = function() {
-            //成功连接到服务器
-            console.log("connected to server");
-            initWebRTC();
-        }
-        wsClient.onclose = function(e) {
-            btnClose();
-            console.log("connection closed (" + e.code + ")");
-        }
-        wsClient.onmessage = function(e) {
-            //服务器发送通知
-            //开始处理
-            console.log("message received: " + e.data);
-            var obj = JSON.parse(e.data);
-            if(obj.type == "error"){
-                log(obj.msg);
-                stopSession();
-            }
-            if(obj.type == "answer"){
-                var remoteSessionDescription = obj.data;
-                if (remoteSessionDescription === '') {
-                    alert('Session Description must not be empty');
-                }
+function startSession(){
+    initWebsocket();
+}
 
-                try {
-                    pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(remoteSessionDescription))));
-                    btnOpen();
-                } catch (e) {
-                    alert(e);
-                }
-            }
-        }
-    }
+function stopSession(){
+    wsClient.close();
+    btnClose();
+}
 
-    function startSession(){
-      initWebsocket();
-    }
+function btnOpen(){
+    $("#connection_btn").text("断开");
+    $("#connection_btn").removeClass("btn_primary");
+    $("#connection_btn").addClass("btn-danger");
+    $("#connection_btn").attr("onclick","stopSession()");
+    $("#dropdown_menu_link").addClass("disabled");
+    $("#dropdown_menu_link").attr("disabled", true); 
+    $("#device_refresh").addClass("disabled");
+    $("#device_refresh").attr("disabled", true); 
+}
 
-    function stopSession(){
-      wsClient.close();
-      btnClose();
-    }
-
-    function btnOpen(){
-      $("#connection_btn").text("断开");
-      $("#connection_btn").removeClass("btn_primary");
-      $("#connection_btn").addClass("btn-danger");
-      $("#connection_btn").attr("onclick","stopSession()");
-      $("#dropdownMenuLink").addClass("disabled");
-      $("#dropdownMenuLink").attr("disabled", true); 
-      $("#device_refresh").addClass("disabled");
-      $("#device_refresh").attr("disabled", true); 
-      $("#commandSend").attr("disabled", false);
-    }
-
-    function btnClose(){
-      $("#connection_btn").text("连接");
-      $("#connection_btn").removeClass("btn-danger");
-      $("#connection_btn").addClass("btn_primary");
-      $("#connection_btn").attr("onclick","startSession()");
-      $("#connection_btn").addClass("disabled");
-      $("#connection_btn").attr("disabled", true); 
-      $("#dropdownMenuLink").removeClass("disabled");
-      $("#dropdownMenuLink").attr("disabled", false); 
-      $("#device_refresh").removeClass("disabled");
-      $("#device_refresh").attr("disabled", false); 
-      $("#commandSend").attr("disabled", true);
-    }
-
-    audio_flag = true
-    var audio_track
-    function initWebRTC(){
-        pc = new RTCPeerConnection({
-            iceServers: [
-                {
-                urls: 'stun:118.89.111.54:3478'
-                }, {
-                url: "turn:118.89.111.54:3478",
-                username: "leizhh",
-                credential: "leizhh"
-                }
-            ]
-        });
-
-        pc.ontrack = function (event) {
-          if(audio_flag){
-            audio_track = event.track
-            audio_flag = false
-          }else{
-            var el = document.getElementById('remoteVideo')
-            //console.log("res_stream:",event.streams)
-            res_stream = event.streams[0].clone()
-            //console.log("res_stream:",res_stream)
-            res_stream.addTrack(audio_track)
-            //console.log("res_stream:",res_stream)
-            el.srcObject = res_stream
-          }
-        }
-
-        initDataChannel(pc);
-
-        pc.oniceconnectionstatechange = e => log(pc.iceConnectionState)
-        pc.onicecandidate = event => {
-            if (event.candidate === null) {
-                var localSessionDescription = btoa(JSON.stringify(pc.localDescription));
-                var content = new Object();
-                content["type"]="offer";
-                content["device_id"]=$("#dropdownMenuLink").attr("value");
-                content["data"]=localSessionDescription;
-                wsClient.send(JSON.stringify(content));
-                console.log("localDescription:",btoa(JSON.stringify(pc.localDescription)));
-            }
-        }
-
-        // Offer to receive 1 audio, and 1 video tracks
-        pc.addTransceiver('audio', {'direction': 'sendrecv'})
-        pc.addTransceiver('video', {'direction': 'sendrecv'})
-        pc.createOffer().then(d => pc.setLocalDescription(d)).catch(log)
-    }
-
-    function log(msg){
-        $("#loger").html(msg);
-    }
+function btnClose(){
+    $("#connection_btn").text("连接");
+    $("#connection_btn").removeClass("btn-danger");
+    $("#connection_btn").addClass("btn_primary");
+    $("#connection_btn").attr("onclick","startSession()");
+    $("#connection_btn").addClass("disabled");
+    $("#connection_btn").attr("disabled", true); 
+    $("#dropdown_menu_link").removeClass("disabled");
+    $("#dropdown_menu_link").attr("disabled", false); 
+    $("#device_refresh").removeClass("disabled");
+    $("#device_refresh").attr("disabled", false); 
+}
 </script>
 
 <!--Embed the footer.html template at this location-->

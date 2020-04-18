@@ -2,17 +2,20 @@
 <!--Embed the header.html template at this location-->
 {{ template "header" .}}
 
+<script src="https://cdn.staticfile.org/marked/0.8.2/marked.min.js"></script>
+
 <div class="container"> 
     <div class="row">
         <div class="card p-5 m-5">
             <div class="card-body">
-                <div id="content"></div>
+                <div id="doc_content"></div>
             </div>
           </div>
     </div>
 </div>
+
 <script>
-  document.getElementById('content').innerHTML = marked( {{ .doc}} );
+  $("#doc_content").html(marked( {{ .doc}} ));
 </script>
 
 <!--Embed the footer.html template at this location-->
