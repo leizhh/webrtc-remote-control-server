@@ -60,6 +60,9 @@ var sshDC;
 function initSSH(){
     sshDC = pc.createDataChannel("SSH");
         
+    term.clear();
+    term.writeln("welcome to use WebRTC Remote Control");
+    
     sshDC.onopen = function () {
         userInput();
         console.log("datachannel open");
