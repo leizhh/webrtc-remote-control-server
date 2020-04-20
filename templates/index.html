@@ -66,11 +66,9 @@
 <script>
 var wsClient = null;
 
-$(window).unload(function(){
-//这里面写在关闭页面时，要调用的事件
+$(window).on('beforeunload', function(){
     wsClient.close();
-})
-
+});
 function initWebsocket(){
     wsClient = new WebSocket("ws://"+document.location.host+"/offer");
 
