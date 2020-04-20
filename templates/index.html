@@ -37,34 +37,39 @@
   </div>
 </div>
 
-    <!-- Modal -->
-    <div class="modal fade" id="login_modal" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">登录</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <label for="device_id_show">Device ID:</label>
-                    <input type="text" class="form-control" id="device_id_show" readonly>
-                    <label for="password_show">Password</label>
-                    <input type="password" class="form-control" id="password_input">
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
-                    <button type="button" class="btn btn-primary" onclick="submitPassword()">确定</button>
-                </div>
+<!-- Modal -->
+<div class="modal fade" id="login_modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">登录</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <label for="device_id_show">Device ID:</label>
+                <input type="text" class="form-control" id="device_id_show" readonly>
+                <label for="password_show">Password</label>
+                <input type="password" class="form-control" id="password_input">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="submitPassword()">确定</button>
             </div>
         </div>
     </div>
+</div>
 
 {{ template "cards" .}}
 
 <script>
 var wsClient = null;
+
+$(window).unload(function(){
+//这里面写在关闭页面时，要调用的事件
+    wsClient.close();
+})
 
 function initWebsocket(){
     wsClient = new WebSocket("ws://"+document.location.host+"/offer");

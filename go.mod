@@ -1,4 +1,4 @@
-module webrtc-server
+module webrtc-remote-control-server
 
 go 1.13
 

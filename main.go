@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"net/http"
-	"webrtc-server/server"
+	"webrtc-remote-control-server/server"
 )
 
 func main() {
